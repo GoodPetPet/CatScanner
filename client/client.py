@@ -1,79 +1,97 @@
 import asyncio
 import websockets
 import json
-import aiortc import RTCPeerConnection, RTCSessionDescription,RTCIceCandidate
+import logging
+from aiortc import RTCPeerConnection, RTCSessionDescription,RTCIceCandidate
 
-# WebRTC 连接
-peer_connection = RTCPeerConnection()
+import logging
+logger = logging.getLogger(__name__)  # __name__ 作为日志名称
+logger.setLevel(logging.DEBUG)
 
-# 创建 DataChannel 进行数据传输
-data_channel = peer_connection.create_data_channel("data")
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logger.addHandler(console_handler)
 
 # 连接到信令服务器
-SIGNALING_SERVER = "ws://localhost:8080"
-
-# async def websocket_client():
-#     uri = "ws://localhost:8080/ws?id=1"  # 修改为你的 WebSocket 服务器地址
-#     try:
-#         async with websockets.connect(uri) as websocket:
-#             # 发送消息
-#             data = {"message":"hello client2","hello server":"222","target":"2"}
-
-#             await websocket.send(json.dumps(data))
-#             print("Client: Sent message to server")
-
-#             # 接收服务器消息
-#             response = await websocket.recv()
-#             print(f"Client: Received from server -> {response}")
-
-#     except Exception as e:
-#         print(f"Error: {e}")
-
-# # 运行 WebSocket 客户端
-# asyncio.run(websocket_client())
+SIGNALING_SERVER = "ws://10.10.0.85:8080/ws?id=1"
 
 async def signaling_client():
+    # WebRTC 连接
+    peer_connection = RTCPeerConnection()
+    # 设置 ICE 服务器（局域网可不使用）
+    peer_connection.iceServers = []
+    peer_connection.iceTransportPolicy = "all"
+
+    # 创建 DataChannel 进行数据传输
+    data_channel = peer_connection.createDataChannel("chat")
+    
     async with websockets.connect(SIGNALING_SERVER) as websocket:
-        print("connected to signaling server")
+        logger.info("connected to signaling server")
 
-    #监听ICE 
-    @peer_connection.on("icecandidate")
-    async def on_ice_candidate(candidate):
-        if candidate:
-            message = {"type": "ice-candidate", "candidate": candidate.to_json()}
-            await websocket.send(message)
+        #监听ICE
+        @data_channel.on("message")
+        def on_message(message):
+            logger.info(f"📨 Received: {message}")
 
-            # 监听 DataChannel 连接
         @data_channel.on("open")
         def on_open():
             print("DataChannel opened, sending message...")
-            data_channel.send("Hello from Python!")
+            data_channel.send("Hello, client")
 
-        # 监听 DataChannel 消息
-        @data_channel.on("message")
-        def on_message(message):
-            print(f"Received from Peer B: {message}")
+        @peer_connection.on("iceconnectionstatechange")
+        def on_ice_state_change():
+            print(f"🌍 ICE Connection State: {peer_connection.iceConnectionState}")
 
-
-                # 生成 SDP offer
+        # @peer_connection.on("icecandidate")
+        # async def on_ice_candidate(candidate):
+        #     if candidate:
+        #         print(f"❄️ Sending ICE Candidate: {candidate}")
+        #         await websocket.send(json.dumps({"target":"hello","type": "candidate", "candidate": candidate.to_dict()}))
+                # 监听 DataChannel 消息
+        # 生成 SDP Offer
         offer = await peer_connection.createOffer()
         await peer_connection.setLocalDescription(offer)
-
-        # 发送 SDP offer
-        await websocket.send(json.dumps({"type": "offer", "sdp": offer.sdp, "type": offer.type}))
+        print(f"✅ ICE Gathering State: {peer_connection.iceGatheringState}")
+        # 发送 SDP Offer
+        await websocket.send(json.dumps({"target":"hello","sdp": offer.sdp, "type": offer.type}))
+        logger.info("📡 Sent SDP Offer")
 
         while True:
-            response = await websocket.recv()
-            message = json.loads(response)
+            try:
+                response = await websocket.recv()
+                if not response:
+                    logger.info("Received empty message")
+                    continue
+                try:
+                    message = json.loads(response)
+                except json.JSONDecodeError as e:
+                    logger.info(f"JSON 解析失败: {e}, 收到的原始数据: {response}")
+                    continue  # 跳过当前循环，继续监听消息
 
-            if message["type"] == "answer":
-                # 设置远程 SDP
-                await peer_connection.setRemoteDescription(RTCSessionDescription(message["sdp"], message["type"]))
-                print("Received SDP answer")
+                if "type" in message and message["type"] == "answer":
+                    # 设置远程 SDP
+                    await peer_connection.setRemoteDescription(RTCSessionDescription(sdp=message['sdp'], type=message['type']))
+                    logger.info("✅ Received SDP Answer")
+                    if data_channel.readyState == "open":
+                        print("DataChannel opened, sending message...")
+                        data_channel.send("Hello after SDP Answer!")
 
-            elif message["type"] == "ice-candidate":
-                candidate = RTCIceCandidate(**message["candidate"])
-                await peer_connection.addIceCandidate(candidate)
+                elif "type" in message and message["type"] == "ice-candidate":
+                    # 添加 ICE Candidate
+                    candidate = message["candidate"]
+                    await peer_connection.addIceCandidate(candidate)
+                    logger.info("📡 Added ICE Candidate")
+            except websockets.exceptions.ConnectionClosed as e:
+                logger.info(f"WebSocket 连接关闭: {e}")
+                break  # 退出循环
+
+logger.info("starting signaling client")
+# asyncio.run(signaling_client())
 
 
-asyncio.run(signaling_client())
+async def client():
+    async with websockets.connect(SIGNALING_SERVER) as ws:
+        logger.info("connected to signaling server")
+    pc = RTCPeerConnection()
+
+asyncio.run(client())

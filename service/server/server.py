@@ -30,12 +30,12 @@ async def handle_websocket(request):
                 continue
             
             target_id = data.get("target")
-        
-
             if target_id in connected_clients:
                 await connected_clients[target_id].send_json(data)
             else:
                 print(f"Target {target_id} not found")
+                error_response = json.dumps({"status": "error", "message": "Target {} not found".format(target_id)})
+                await ws.send_json(error_response)
 
         elif msg.type == web.WSMsgType.ERROR:
             print(f"WebSocket error: {ws.exception()}")
