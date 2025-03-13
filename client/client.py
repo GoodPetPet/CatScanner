@@ -11,7 +11,6 @@ logger.setLevel(logging.DEBUG)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 logger.addHandler(console_handler)
-
 # 连接到信令服务器
 SIGNALING_SERVER = "ws://10.10.0.85:8080/ws?id=1"
 
@@ -23,7 +22,7 @@ async def signaling_client():
     peer_connection.iceTransportPolicy = "all"
 
     # 创建 DataChannel 进行数据传输
-    data_channel = peer_connection.createDataChannel("chat")
+    data_channel = peer_connection.createDataChannel("data")
     
     async with websockets.connect(SIGNALING_SERVER) as websocket:
         logger.info("connected to signaling server")
@@ -37,17 +36,7 @@ async def signaling_client():
         def on_open():
             print("DataChannel opened, sending message...")
             data_channel.send("Hello, client")
-
-        @peer_connection.on("iceconnectionstatechange")
-        def on_ice_state_change():
-            print(f"🌍 ICE Connection State: {peer_connection.iceConnectionState}")
-
-        # @peer_connection.on("icecandidate")
-        # async def on_ice_candidate(candidate):
-        #     if candidate:
-        #         print(f"❄️ Sending ICE Candidate: {candidate}")
-        #         await websocket.send(json.dumps({"target":"hello","type": "candidate", "candidate": candidate.to_dict()}))
-                # 监听 DataChannel 消息
+        # 监听 DataChannel 消息
         # 生成 SDP Offer
         offer = await peer_connection.createOffer()
         await peer_connection.setLocalDescription(offer)
@@ -86,12 +75,4 @@ async def signaling_client():
                 break  # 退出循环
 
 logger.info("starting signaling client")
-# asyncio.run(signaling_client())
-
-
-async def client():
-    async with websockets.connect(SIGNALING_SERVER) as ws:
-        logger.info("connected to signaling server")
-    pc = RTCPeerConnection()
-
-asyncio.run(client())
+asyncio.run(signaling_client())

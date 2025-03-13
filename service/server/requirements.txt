@@ -1,4 +1,1 @@
-websockets
-numpy
-aiohttp
-aiortc
+aiohttp==3.11.12
