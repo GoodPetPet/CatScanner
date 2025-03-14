@@ -37,16 +37,10 @@ def handle_disconnect():
             print(f"Client {username} disconnected")
             break
 
-@socketio.on('offer')
+@socketio.on('message')
 def handle_offer(data):
-    """ 处理客户端发送的 offer 消息 """
-    socketio.emit('offer1', data, room=None)
-
-@socketio.on('answer')
-def handle_answer(data):
-    """ 处理客户端发送的 answer 消息 """
-    socketio.emit('answer1', data, room=None)
-
+    """透传信息"""
+    socketio.emit('message', data, room=None)
 
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=5000, debug=False)  # ✅ 关闭 `debug=True`

@@ -37,10 +37,10 @@ async def connect_to_answer():
     await pc.setLocalDescription(offer)
 
     # 发送 offer
-    await sio.emit("offer", {"offer": pc.localDescription.sdp,"type":offer.type})
+    await sio.emit("message", {"offer": pc.localDescription.sdp,"type":offer.type})
     logger.info("📡 Sent SDP Offer")
 
-@sio.on("answer1")
+@sio.on("message")
 async def handle_answer(data):
     if (data["type"]=="answer"):
         await pc.setRemoteDescription(RTCSessionDescription(sdp=data['answer'], type=data["type"]))
@@ -71,17 +71,6 @@ async def connect_to_server():
     await sio.connect(SIGNALING_SERVER)
         # 保持连接
     await sio.wait()
-
-
-
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     asyncio.run(connect_to_server())

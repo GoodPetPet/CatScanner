@@ -31,16 +31,7 @@ def on_open():
     print("DataChannel opened, sending message...")
     data_channel.send("Hello, client")
 
-# async def connect_to_answer():
-#     #生成offer
-#     offer = await pc.createOffer()
-#     await pc.setLocalDescription(offer)
-
-#     # 发送 offer
-#     await sio.emit("offer", {"offer": pc.localDescription.sdp,"type":offer.type})
-#     logger.info("📡 Sent SDP Offer")
-
-@sio.on('offer1')
+@sio.on('message')
 async def handle_offer(data):
     if (data["type"]=="offer"):
         await pc.setRemoteDescription(RTCSessionDescription(sdp=data["offer"], type=data["type"]))
@@ -48,10 +39,8 @@ async def handle_offer(data):
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
 
-        await sio.emit("answer", {"answer": pc.localDescription.sdp,"type":answer.type})
+        await sio.emit("message", {"answer": pc.localDescription.sdp,"type":answer.type})
         logger.info("📡 Sent SDP Answer")
-
-
 
 # 连接 WebSocket 服务器
 @sio.event
@@ -59,8 +48,6 @@ async def connect():
     print("Connected to signaling server")
     # 注册用户
     await sio.emit("register", {"username": "userB"})
-
-
 # 监听断开连接
 @sio.event
 async def disconnect():
@@ -76,10 +63,6 @@ async def connect_to_server():
     await sio.connect(SIGNALING_SERVER)
         # 保持连接
     await sio.wait()
-
-
-
-
 
 
 
