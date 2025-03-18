@@ -1,4 +1,4 @@
-from flask import render_template, request, url_for, redirect, flash
+from flask import render_template, request,Response, url_for, redirect, flash,jsonify
 from flask_login import login_user, login_required, logout_user, current_user
 
 from watchlist import app, db
@@ -73,3 +73,9 @@ def logout():
     logout_user()  # 登出用户
     flash('Goodbye.')
     return redirect(url_for('index'))  # 重定向回首页
+
+@app.route('/handle_login', methods=['GET', 'POST'])
+def handle_login():
+    if request.method == 'POST':
+        # 验证用户名和密码是否一致
+        return  jsonify({"message": "hello world"}) 
